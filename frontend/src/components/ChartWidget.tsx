@@ -6,6 +6,7 @@ import { useTheme } from '../hooks/useTheme';
 interface ChartWidgetProps {
   chart: ChartData;
   compact?: boolean;
+  thumbnail?: boolean;
 }
 
 // ── 浅色模式配色（新默认）──
@@ -89,7 +90,7 @@ function normalizeGridSide(
  *
  * 在主题颜色注入前调用，确保布局先于颜色适配。
  */
-function fixChartLayout(option: PlainObject): PlainObject {
+function fixChartLayout(option: PlainObject, thumbnail = false): PlainObject {
   const fixed = { ...option };
 
   // ── Grid: 边距归一化 + 轴标签自适应 ──
@@ -101,6 +102,19 @@ function fixChartLayout(option: PlainObject): PlainObject {
 
   if (grid.containLabel === undefined) {
     grid.containLabel = true;
+  }
+
+  // Thumbnail mode: minimal margins, hide title, skip collision detection
+  if (thumbnail) {
+    grid.top = 4;
+    grid.bottom = 4;
+    grid.left = 4;
+    grid.right = 4;
+    fixed.grid = grid;
+    if (fixed.title) {
+      fixed.title = { ...(fixed.title as PlainObject), show: false };
+    }
+    return fixed;
   }
 
   // 四边归一化：只压制过大值，合理的 LLM 设定（如 left: 55）原样保留
@@ -191,7 +205,7 @@ function patchSingleAxis(args: AxisPatchArgs): PlainObject {
  * 将 LLM 生成的 ECharts option 根据当前主题做完整颜色注入。
  * 无论深色/浅色，始终由前端统一管理所有视觉属性。
  */
-function adaptChartOption(option: Record<string, unknown>, theme: 'dark' | 'light'): Record<string, unknown> {
+function adaptChartOption(option: Record<string, unknown>, theme: 'dark' | 'light', thumbnail = false): Record<string, unknown> {
   const dataColors = theme === 'dark' ? DARK_DATA_COLORS : LIGHT_DATA_COLORS;
   const textPrimary = theme === 'dark' ? DARK_TEXT_PRIMARY : LIGHT_TEXT_PRIMARY;
   const textSecondary = theme === 'dark' ? DARK_TEXT_SECONDARY : LIGHT_TEXT_SECONDARY;
@@ -199,7 +213,7 @@ function adaptChartOption(option: Record<string, unknown>, theme: 'dark' | 'ligh
   const tooltipBg = theme === 'dark' ? DARK_TOOLTIP_BG : LIGHT_TOOLTIP_BG;
 
   // 先修布局冲突，再注入主题颜色
-  const adapted: PlainObject = fixChartLayout(option as PlainObject);
+  const adapted: PlainObject = fixChartLayout(option as PlainObject, thumbnail);
 
   // 1. 数据系列颜色 — 始终注入，覆盖 LLM 可能指定的颜色
   adapted.color = dataColors;
@@ -247,10 +261,65 @@ function adaptChartOption(option: Record<string, unknown>, theme: 'dark' | 'ligh
     }
   }
 
+  // ── Thumbnail: shrink fonts, hide legend, tighten pie, disable animation ──
+  if (thumbnail) {
+    const shrinkAxisFont = (axis: unknown): PlainObject => {
+      if (!axis || typeof axis !== 'object') return axis as PlainObject;
+      const a = { ...(axis as PlainObject) };
+      a.axisLabel = { ...(a.axisLabel as PlainObject || {}), fontSize: 8 };
+      return a;
+    };
+
+    if (adapted.xAxis) {
+      if (Array.isArray(adapted.xAxis)) {
+        adapted.xAxis = adapted.xAxis.map(shrinkAxisFont);
+      } else {
+        adapted.xAxis = shrinkAxisFont(adapted.xAxis);
+      }
+    }
+
+    if (adapted.yAxis) {
+      if (Array.isArray(adapted.yAxis)) {
+        adapted.yAxis = adapted.yAxis.map(shrinkAxisFont);
+      } else {
+        adapted.yAxis = shrinkAxisFont(adapted.yAxis);
+      }
+    }
+
+    // Hide legend — thumbnail is visual preview only
+    if (adapted.legend) {
+      adapted.legend = { ...(adapted.legend as PlainObject), show: false };
+    }
+
+    // Pie chart: tighten radius, shrink slice labels
+    const series = adapted.series as Array<PlainObject> | undefined;
+    const chartType = Array.isArray(series) ? series[0]?.type : undefined;
+    if (chartType === 'pie' && Array.isArray(series)) {
+      adapted.series = series.map(s => {
+        const patched = { ...s } as PlainObject;
+        if (patched.radius) {
+          if (typeof patched.radius === 'string') {
+            patched.radius = '45%';
+          } else if (Array.isArray(patched.radius)) {
+            patched.radius = [patched.radius[0], '45%'];
+          }
+        } else {
+          patched.radius = '45%';
+        }
+        if (patched.label) {
+          patched.label = { ...(patched.label as PlainObject), fontSize: 9 };
+        }
+        return patched;
+      });
+    }
+
+    adapted.animationDuration = 0;
+  }
+
   return adapted;
 }
 
-export function ChartWidget({ chart, compact = false }: ChartWidgetProps) {
+export function ChartWidget({ chart, compact = false, thumbnail = false }: ChartWidgetProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const instanceRef = useRef<echarts.ECharts | null>(null);
   const { theme } = useTheme();
@@ -264,7 +333,7 @@ export function ChartWidget({ chart, compact = false }: ChartWidgetProps) {
       } as any);
     }
 
-    const adaptedOption = adaptChartOption(chart.option, theme);
+    const adaptedOption = adaptChartOption(chart.option, theme, thumbnail);
 
     const option = {
       ...adaptedOption,
@@ -288,6 +357,15 @@ export function ChartWidget({ chart, compact = false }: ChartWidgetProps) {
       instanceRef.current = null;
     };
   }, []);
+
+  // Thumbnail variant: minimal padding, extra-small chart, no bottom margin
+  if (thumbnail) {
+    return (
+      <div className="bg-[var(--color-surface)]/30 border border-[var(--color-border)]/30 rounded-lg p-2">
+        <div ref={containerRef} style={{ width: '100%', height: '100px' }} />
+      </div>
+    );
+  }
 
   return (
     <div className="mb-4 bg-[var(--color-surface)]/30 border border-[var(--color-border)]/40 rounded-xl p-4 animate-slide-up">

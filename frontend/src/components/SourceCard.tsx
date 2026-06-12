@@ -1,5 +1,7 @@
-import { SourceState } from '../types/chat';
-import { ChartWidget } from './ChartWidget';
+import { useState } from 'react';
+import { SourceState, ChartData } from '../types/chat';
+import { ChartThumbnail } from './ChartThumbnail';
+import { ChartLightbox } from './ChartLightbox';
 
 interface SourceCardProps {
   source: SourceState;
@@ -17,6 +19,8 @@ export function SourceCard({ source }: SourceCardProps) {
   const isDone = source.status === 'done';
   const isError = source.status === 'error';
   const isRunning = source.status === 'running';
+
+  const [selectedChart, setSelectedChart] = useState<ChartData | null>(null);
 
   return (
     <div
@@ -57,15 +61,28 @@ export function SourceCard({ source }: SourceCardProps) {
         </div>
       )}
 
-      {/* L2 Charts */}
+      {/* L2 Charts — thumbnails, click to expand */}
       {source.charts.length > 0 && (
         <div className="mt-2 space-y-2">
           {source.charts.map(chart => (
-            <div key={chart.chartId} className="w-full" style={{ height: '150px' }}>
-              <ChartWidget chart={chart} compact />
-            </div>
+            <ChartThumbnail
+              key={chart.chartId}
+              chart={chart}
+              sourceName={source.sourceName}
+              onClick={() => setSelectedChart(chart)}
+            />
           ))}
         </div>
+      )}
+
+      {/* Chart Lightbox */}
+      {selectedChart && (
+        <ChartLightbox
+          chart={selectedChart}
+          sourceName={source.sourceName}
+          isOpen={!!selectedChart}
+          onClose={() => setSelectedChart(null)}
+        />
       )}
 
       {/* L2 Tool calls (show first, rest expandable) */}

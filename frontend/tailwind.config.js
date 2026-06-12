@@ -29,6 +29,7 @@ export default {
         'pulse-dot': 'pulse-dot 1.4s ease-in-out infinite',
         'slide-up': 'slide-up 0.3s ease-out',
         'fade-in': 'fade-in 0.25s ease-out',
+        'scale-in': 'scale-in 0.25s ease-out',
       },
       keyframes: {
         'pulse-dot': {
@@ -42,6 +43,10 @@ export default {
         'fade-in': {
           '0%': { opacity: '0' },
           '100%': { opacity: '1' },
+        },
+        'scale-in': {
+          '0%': { transform: 'scale(0.95)', opacity: '0' },
+          '100%': { transform: 'scale(1)', opacity: '1' },
         },
       },
     },

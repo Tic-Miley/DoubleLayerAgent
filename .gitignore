@@ -1,0 +1,27 @@
+# ── Python ──────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# ── Environment (contains API keys) ─────────────
+.env
+
+# ── SQLite databases ────────────────────────────
+*.db
+*.db-shm
+*.db-wal
+
+# ── Node / Frontend ─────────────────────────────
+node_modules/
+dist/
+
+# ── OS ──────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── IDE ─────────────────────────────────────────
+.idea/
+.vscode/
+
+# ── Claude Code ─────────────────────────────────
+.claude/

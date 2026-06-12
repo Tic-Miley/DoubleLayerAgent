@@ -1,0 +1,58 @@
+# things.yaml — Layer 2 物注册表
+# 每个物包含：标识、位置、协议、端点
+
+things:
+  - id: parking_lot_a
+    name: 购物中心停车场
+    type: parking_lot
+    location:
+      lat: 39.9219
+      lng: 116.4435
+    description: 位于朝阳区的800车位地面停车场，服务周边商圈
+    protocol: agent_sse
+    endpoint: http://localhost:8011/api/chat
+
+  - id: parking_lot_b
+    name: 科技园停车场
+    type: parking_lot
+    location:
+      lat: 39.9280
+      lng: 116.4200
+    description: 位于科技园的500车位地下停车场，主要服务园区企业
+    protocol: agent_sse
+    endpoint: http://localhost:8012/api/chat
+
+  - id: parking_lot_c
+    name: 社区停车场
+    type: parking_lot
+    location:
+      lat: 39.9050
+      lng: 116.4350
+    description: 位于朝阳区的1200车位大型社区停车场
+    protocol: agent_sse
+    endpoint: http://localhost:8013/api/chat
+
+  - id: cafeteria_downtown
+    name: 中心食堂
+    type: cafeteria
+    location:
+      lat: 39.9150
+      lng: 116.4040
+    description: 提供当前就餐人数
+    protocol: http_rest
+    endpoint: http://localhost:8010/api/cafeteria/count
+
+  - id: hospital_downtown
+    name: 中心医院
+    type: hospital
+    location:
+      lat: 39.9180
+      lng: 116.4100
+    description: 提供当前门诊等候人数
+    protocol: http_rest
+    endpoint: http://localhost:8010/api/hospital/count
+
+# 用户默认位置（演示预设）
+user_default:
+  lat: 39.9150
+  lng: 116.4040

@@ -1,0 +1,93 @@
+# tools.yaml — L2 物的 OpenAI function-calling tool schemas
+# L1 启动时加载并注册为 LLM 可用工具
+# L1 自有工具在 Python 代码中定义，不在此文件
+
+tools:
+  # ── ParkingLotAgent 共用 Schema（三个实例复用） ──
+  - thing_id: parking_lot_a
+    schema:
+      type: function
+      function:
+        name: query_parking_lot_a
+        description: |
+          查询购物中心停车场的数据。支持：当前空余车位、车辆类型分布、
+          楼层占用、历史趋势、车辆详情等。
+          传入自然语言查询语句。返回结果中的 structured 字段包含:
+          occupancy_rate (float 0-1), nev_ratio (float 0-1),
+          total_spots (int), available_spots (int),
+          vehicle_types (object, key=类型 value=数量)。
+        parameters:
+          type: object
+          properties:
+            query:
+              type: string
+              description: 自然语言查询，如"现在还剩多少车位"、"最近30天新能源车占比"
+          required: ["query"]
+          additionalProperties: false
+
+  - thing_id: parking_lot_b
+    schema:
+      type: function
+      function:
+        name: query_parking_lot_b
+        description: |
+          查询科技园停车场的数据。支持：当前空余车位、车辆类型分布、
+          楼层占用、历史趋势、车辆详情等。
+          传入自然语言查询语句。返回结果中的 structured 字段包含:
+          occupancy_rate (float 0-1), nev_ratio (float 0-1),
+          total_spots (int), available_spots (int),
+          vehicle_types (object, key=类型 value=数量)。
+        parameters:
+          type: object
+          properties:
+            query:
+              type: string
+              description: 自然语言查询语句
+          required: ["query"]
+          additionalProperties: false
+
+  - thing_id: parking_lot_c
+    schema:
+      type: function
+      function:
+        name: query_parking_lot_c
+        description: |
+          查询社区停车场的数据。支持：当前空余车位、车辆类型分布、
+          楼层占用、历史趋势、车辆详情等。
+          传入自然语言查询语句。返回结果中的 structured 字段包含:
+          occupancy_rate (float 0-1), nev_ratio (float 0-1),
+          total_spots (int), available_spots (int),
+          vehicle_types (object, key=类型 value=数量)。
+        parameters:
+          type: object
+          properties:
+            query:
+              type: string
+              description: 自然语言查询语句
+          required: ["query"]
+          additionalProperties: false
+
+  # ── 简单物 Schema ──
+  - thing_id: cafeteria_downtown
+    schema:
+      type: function
+      function:
+        name: query_cafeteria
+        description: 查询中心食堂当前就餐人数
+        parameters:
+          type: object
+          properties: {}
+          required: []
+          additionalProperties: false
+
+  - thing_id: hospital_downtown
+    schema:
+      type: function
+      function:
+        name: query_hospital
+        description: 查询中心医院当前门诊等候人数
+        parameters:
+          type: object
+          properties: {}
+          required: []
+          additionalProperties: false

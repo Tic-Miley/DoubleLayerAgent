@@ -1,16 +1,5 @@
 import { useState, useRef, useEffect, KeyboardEvent, useCallback } from 'react';
-// Speech recognition not needed for this project
-function useSpeechStub(_opts?: Record<string, unknown>) {
-  return {
-    isSupported: false,
-    isListening: false,
-    interimText: '',
-    error: null as string | null,
-    startListening: () => {},
-    stopListening: () => {},
-    clearError: () => {},
-  };
-}
+import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 
 interface ChatInputProps {
   onSend: (text: string, model?: string, thinkingMode?: string) => void;
@@ -36,7 +25,7 @@ export function ChatInput({ onSend, onStop, isStreaming }: ChatInputProps) {
     startListening,
     stopListening,
     clearError,
-  } = useSpeechStub({
+  } = useSpeechRecognition({
     onFinalResult: (text: string) => {
       setInput(prev => {
         const trimmed = text.trim();

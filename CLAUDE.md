@@ -16,10 +16,14 @@ DoubleLayerAgent is a **two-tier Agent simulation system** (6 processes) that va
 ## Start / build / verify
 
 ```bash
+# Create venv (one-time)
+python -m venv venv
+
 # Install all dependencies (one-time)
-cd l1_agent && pip install -r requirements.txt
-cd ../simple_things && pip install -r requirements.txt
-cd ../frontend && npm install
+venv\Scripts\python -m pip install -r l1_agent/requirements.txt
+venv\Scripts\python -m pip install -r simple_things/requirements.txt
+venv\Scripts\python -m pip install -r instances/parking_a/requirements.txt
+cd frontend && npm install
 
 # (Re)generate L2 data
 .\scripts\regenerate_data.ps1
@@ -38,7 +42,7 @@ cd frontend && npx tsc --noEmit          # type-check
 
 Each service can also be started individually for debugging:
 ```bash
-cd l1_agent && uvicorn main:app --port 8001
+venv\Scripts\python -m uvicorn l1_agent.main:app --port 8001
 ```
 
 ## Architecture (non-obvious from file listing)

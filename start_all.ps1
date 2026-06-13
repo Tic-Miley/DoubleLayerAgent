@@ -7,6 +7,14 @@ param(
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
+# Python 虚拟环境
+$PYTHON = "$PSScriptRoot\venv\Scripts\python.exe"
+if (-not (Test-Path $PYTHON)) {
+    Write-Host "✗ venv 未找到: $PYTHON" -ForegroundColor Red
+    Write-Host "  请先运行: python -m venv venv" -ForegroundColor Yellow
+    exit 1
+}
+
 # 状态文件（供 stop_all.ps1 读取），包含 PID 和端口，消除两脚本间的端口硬编码重复
 $STATE_FILE = Join-Path $PSScriptRoot ".running_state.json"
 
@@ -121,13 +129,23 @@ function Stop-AllServices {
 
 Write-Banner
 
+# 询问是否更新数据库
+$regenerate = Read-Host "是否更新数据库到最新状态？(Y/n)"
+if ($regenerate -eq '' -or $regenerate -match '^[Yy]') {
+    Write-Host "正在更新数据库..." -ForegroundColor Green
+    & "$PSScriptRoot\scripts\regenerate_data.ps1"
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "⚠ 数据库更新可能失败，继续启动服务..." -ForegroundColor Yellow
+    }
+}
+
 # 清理残留状态文件
 Remove-StateFile
 
 # 1. SimpleThings :8010
 Start-Service -Label "SimpleThings :8010" `
     -WorkingDirectory "simple_things" `
-    -Executable "python" `
+    -Executable $PYTHON `
     -Arguments "-m", "uvicorn", "main:app", "--port", "8010" `
     -Port 8010
 
@@ -136,7 +154,7 @@ foreach ($i in @("a","b","c")) {
     $port = if ($i -eq "a") { 8011 } elseif ($i -eq "b") { 8012 } else { 8013 }
     Start-Service -Label "ParkingLotAgent $($i.ToUpper()) :$port" `
         -WorkingDirectory "instances/parking_$i" `
-        -Executable "python" `
+        -Executable $PYTHON `
         -Arguments "-m", "uvicorn", "main:app", "--port", "$port" `
         -Port $port
 }
@@ -144,7 +162,7 @@ foreach ($i in @("a","b","c")) {
 # 3. L1 Backend :8001
 Start-Service -Label "L1 Agent :8001" `
     -WorkingDirectory "l1_agent" `
-    -Executable "python" `
+    -Executable $PYTHON `
     -Arguments "-m", "uvicorn", "main:app", "--port", "8001" `
     -Port 8001 `
     -Color "Yellow"

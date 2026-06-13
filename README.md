@@ -30,10 +30,21 @@ Layer 1 编排 Agent (:8001)
 - Node.js 18+
 - Windows PowerShell（启动脚本）
 
-### 2. 安装依赖
+### 2. 创建虚拟环境并安装依赖
 
 ```bash
-pip install fastapi uvicorn httpx openai pydantic python-dotenv pyyaml pandas
+# 创建 venv
+python -m venv venv
+
+# Windows 下激活（终端手动操作时使用，脚本不需要）
+venv\Scripts\activate
+
+# 安装后端依赖
+pip install -r l1_agent/requirements.txt
+pip install -r simple_things/requirements.txt
+pip install -r instances/parking_a/requirements.txt  # parking_b/c 依赖相同
+
+# 安装前端依赖
 cd frontend && npm install
 ```
 

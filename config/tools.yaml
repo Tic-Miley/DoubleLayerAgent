@@ -3,25 +3,19 @@
 # L1 自有工具在 Python 代码中定义，不在此文件
 
 tools:
-  # ── ParkingLotAgent 共用 Schema（三个实例复用） ──
+  # ── ParkingLotAgent Schemas ──
   - thing_id: parking_lot_a
     schema:
       type: function
       function:
         name: query_parking_lot_a
-        description: |
-          查询购物中心停车场的数据。支持：当前空余车位、车辆类型分布、
-          楼层占用、历史趋势、车辆详情等。
-          传入自然语言查询语句。返回结果中的 structured 字段包含:
-          occupancy_rate (float 0-1), nev_ratio (float 0-1),
-          total_spots (int), available_spots (int),
-          vehicle_types (object, key=类型 value=数量)。
+        description: 查询购物中心停车场。传入自然语言查询，返回文本+结构化JSON。
         parameters:
           type: object
           properties:
             query:
               type: string
-              description: 自然语言查询，如"现在还剩多少车位"、"最近30天新能源车占比"
+              description: 自然语言查询，如"剩余车位"、"新能源车占比趋势"
           required: ["query"]
           additionalProperties: false
 
@@ -30,19 +24,13 @@ tools:
       type: function
       function:
         name: query_parking_lot_b
-        description: |
-          查询科技园停车场的数据。支持：当前空余车位、车辆类型分布、
-          楼层占用、历史趋势、车辆详情等。
-          传入自然语言查询语句。返回结果中的 structured 字段包含:
-          occupancy_rate (float 0-1), nev_ratio (float 0-1),
-          total_spots (int), available_spots (int),
-          vehicle_types (object, key=类型 value=数量)。
+        description: 查询科技园停车场。传入自然语言查询，返回文本+结构化JSON。
         parameters:
           type: object
           properties:
             query:
               type: string
-              description: 自然语言查询语句
+              description: 自然语言查询，如"剩余车位"、"车型分布"
           required: ["query"]
           additionalProperties: false
 
@@ -51,19 +39,13 @@ tools:
       type: function
       function:
         name: query_parking_lot_c
-        description: |
-          查询社区停车场的数据。支持：当前空余车位、车辆类型分布、
-          楼层占用、历史趋势、车辆详情等。
-          传入自然语言查询语句。返回结果中的 structured 字段包含:
-          occupancy_rate (float 0-1), nev_ratio (float 0-1),
-          total_spots (int), available_spots (int),
-          vehicle_types (object, key=类型 value=数量)。
+        description: 查询社区停车场。传入自然语言查询，返回文本+结构化JSON。
         parameters:
           type: object
           properties:
             query:
               type: string
-              description: 自然语言查询语句
+              description: 自然语言查询，如"剩余车位"、"楼层占用"
           required: ["query"]
           additionalProperties: false
 

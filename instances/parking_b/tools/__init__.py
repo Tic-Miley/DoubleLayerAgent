@@ -45,8 +45,9 @@ TOOL_SCHEMAS = [
                     "active_only": {
                         "type": "boolean",
                         "description": (
-                            "true=仅查询当前在场车辆（快照），false=查询历史记录。"
-                            "默认为 true。设为 false 时才能使用 date_from/date_to/include_duration。"
+                            "true=仅当前在场车辆（快照），false=查询历史记录。默认为true。"
+                            "true时group_by仅支持vehicle_type和floor；"
+                            "设为false后才能使用date_from/date_to/include_duration。"
                         ),
                     },
                     "group_by": {
@@ -118,37 +119,11 @@ TOOL_SCHEMAS = [
         "function": {
             "name": "sql_query",
             "description": (
-                "执行受控的只读SQL查询。仅当 query_aggregation 无法满足需求时使用。\n\n"
-                "## 典型降级场景\n"
-                "- 二维交叉分组: GROUP BY a, b\n"
-                "- 子查询: WHERE x > (SELECT AVG(...))\n"
-                "- 窗口函数: ROW_NUMBER() OVER (...)\n"
-                "- HAVING 过滤: HAVING COUNT(*) > N\n"
-                "- 自定义 ORDER BY LIMIT\n\n"
-                "## 数据库Schema\n"
-                "parking_lot_config(id, name, total_spots, floors, spots_per_floor, hourly_rate)\n"
-                "vehicle_record(\n"
-                "  id, plate, vehicle_type, entry_time, exit_time, entry_floor, entry_spot\n"
-                ")\n"
-                "  - vehicle_type 取值: 'ICE','BEV','PHEV','HEV'\n"
-                "  - exit_time IS NULL = 车辆在场\n\n"
-                "## 可用索引\n"
-                "idx_entry_time(entry_time), idx_exit_time(exit_time),\n"
-                "idx_vehicle_type(vehicle_type), idx_plate(plate),\n"
-                "idx_active(entry_time WHERE exit_time IS NULL)\n\n"
-                "## 正确SQL示例\n"
-                "1. 二维分组: SELECT DATE(entry_time) as dt, vehicle_type, COUNT(*) \n"
-                "   FROM vehicle_record \n"
-                "   WHERE entry_time >= '2026-05-01' \n"
-                "   GROUP BY dt, vehicle_type ORDER BY dt\n\n"
-                "2. 子查询+过滤: SELECT * FROM vehicle_record \n"
-                "   WHERE exit_time IS NOT NULL \n"
-                "   AND (julianday(exit_time)-julianday(entry_time))*24*60 > 180\n\n"
-                "3. HAVING: SELECT DATE(entry_time) as dt, COUNT(*) as cnt \n"
-                "   FROM vehicle_record \n"
-                "   GROUP BY dt HAVING cnt > 1500\n\n"
-                "## 安全限制\n"
-                "只读模式、最多返回1000行、超时5秒"
+                "执行受控只读SQL查询。仅当 query_aggregation 无法满足时使用。\n"
+                "表: parking_lot_config(id,name,total_spots,floors,spots_per_floor,hourly_rate)\n"
+                "     vehicle_record(id,plate,vehicle_type[ICE/BEV/PHEV/HEV],entry_time,exit_time,entry_floor,entry_spot)\n"
+                "索引: idx_entry_time, idx_exit_time, idx_vehicle_type, idx_plate, idx_active\n"
+                "限制: 只读、最多1000行、5秒超时。SQL语法错误时会返回schema提示。"
             ),
             "parameters": {
                 "type": "object",

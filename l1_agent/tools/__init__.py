@@ -97,10 +97,10 @@ L1_TOOL_SCHEMAS: list[dict] = [
         "function": {
             "name": "render_chart",
             "description": (
-                "生成 ECharts 对比图表。支持 pie/line/bar。跨源对比优先用 bar 或 line"
-                "（支持多系列）。如果各源数据维度不一致（如时序趋势 vs 车型分类），"
-                "不要使用本工具——改为输出文字分析。"
-                "传入完整的 ECharts option JSON，可选 chart_title。"
+                "生成ECharts对比图表。支持pie/line/bar。"
+                "跨源对比用bar或line（多系列），单源占比用pie。"
+                "option须包含有效series数组（每个series必须有type字段）。"
+                "各源数据维度不兼容时勿用本工具，改为文字分析。"
             ),
             "parameters": {
                 "type": "object",

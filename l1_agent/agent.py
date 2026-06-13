@@ -310,6 +310,11 @@ async def agent_loop(
                         message=_tool_message(tool_name, arguments),
                     )
 
+                # Yield to event loop so the SSE generator can stream the
+                # "running" frame before the tool (especially sync L1 tools
+                # like aggregate/render_chart) blocks the event loop.
+                await asyncio.sleep(0)
+
                 # Execute
                 if tool_name in BRIDGE_TOOL_NAMES:
                     result = await _execute_bridge_tool(

@@ -5,6 +5,7 @@ __pycache__/
 
 # ── Environment (contains API keys) ─────────────
 .env
+venv/
 
 # ── SQLite databases ────────────────────────────
 *.db

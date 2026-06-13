@@ -191,23 +191,46 @@ export function useChat() {
               return { ...m, sources: newSources };
             }
 
-            // ── source_tool_call: append L2 tool state ──
+            // ── source_tool_call: merge or append L2 tool state ──
             case 'source_tool_call': {
               const sid = data.source_id as string;
               const l2Tool: ToolCallEvent = {
                 toolName: data.tool_name as string,
                 status: data.status as ToolCallEvent['status'],
                 arguments: data.arguments as Record<string, unknown> | undefined,
+                message: data.message as string | undefined,
                 resultPreview: data.result_preview as string | undefined,
                 error: data.error as string | undefined,
               };
               return {
                 ...m,
-                sources: m.sources.map(s =>
-                  s.sourceId === sid
-                    ? { ...s, toolCalls: [...s.toolCalls, l2Tool] }
-                    : s
-                ),
+                sources: m.sources.map(s => {
+                  if (s.sourceId !== sid) return s;
+
+                  // Merge pattern: find existing running entry for the same tool
+                  const existingIdx = s.toolCalls.findIndex(
+                    tc => tc.toolName === l2Tool.toolName && tc.status === 'running'
+                  );
+                  const newToolCalls = [...s.toolCalls];
+
+                  if (existingIdx >= 0 && l2Tool.status !== 'running') {
+                    // Replace running entry with completed/errored one
+                    newToolCalls[existingIdx] = { ...newToolCalls[existingIdx], ...l2Tool };
+                  } else if (existingIdx < 0) {
+                    // New tool call (first running event, or orphaned done)
+                    newToolCalls.push(l2Tool);
+                  }
+                  // If running + already has a running entry → skip duplicate
+
+                  // Sort: non-running first, running last
+                  const sorted = [...newToolCalls].sort((a, b) => {
+                    if (a.status === 'running' && b.status !== 'running') return 1;
+                    if (a.status !== 'running' && b.status === 'running') return -1;
+                    return 0;
+                  });
+
+                  return { ...s, toolCalls: sorted };
+                }),
               };
             }
 

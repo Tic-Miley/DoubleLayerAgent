@@ -140,6 +140,7 @@ async def query_agent_thing(
                                         tool_name=data.get("tool_name", ""),
                                         status=data.get("status", "running"),
                                         arguments=data.get("arguments"),
+                                        message=data.get("message"),
                                         result_preview=data.get("result_preview"),
                                         error=data.get("error"),
                                     )

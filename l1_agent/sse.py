@@ -75,6 +75,7 @@ class SSESender:
     async def source_tool_call(
         self, message_id: str, source_id: str, tool_name: str,
         status: str, arguments: dict | None = None,
+        message: str | None = None,
         result_preview: str | None = None, error: str | None = None,
     ) -> None:
         data = {
@@ -85,6 +86,8 @@ class SSESender:
         }
         if arguments:
             data["arguments"] = arguments
+        if message:
+            data["message"] = message
         if result_preview:
             data["result_preview"] = result_preview
         if error:

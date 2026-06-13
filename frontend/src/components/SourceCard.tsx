@@ -85,17 +85,51 @@ export function SourceCard({ source }: SourceCardProps) {
         />
       )}
 
-      {/* L2 Tool calls (show first, rest expandable) */}
+      {/* L2 Tool calls — compact, labeled, merge-aware */}
       {source.toolCalls.length > 0 && (
-        <div className="mt-2 text-xs text-[var(--color-text-tertiary)]">
-          {source.toolCalls.map((tc, i) => (
-            <div key={i} className="flex items-center gap-1">
-              <span className={tc.status === 'done' ? 'text-green-400' : tc.status === 'error' ? 'text-red-400' : 'text-blue-400'}>
-                {tc.status === 'done' ? '✓' : tc.status === 'error' ? '✕' : '◉'}
-              </span>
-              <span>{tc.toolName}</span>
-            </div>
-          ))}
+        <div className="mt-2 space-y-1">
+          {source.toolCalls.map((tc, i) => {
+            const isRunning = tc.status === 'running';
+            const isError = tc.status === 'error';
+            const label = tc.message || tc.toolName;
+
+            return (
+              <div
+                key={`${tc.toolName}-${i}`}
+                className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-all duration-200 ${
+                  isError
+                    ? 'bg-red-500/5'
+                    : isRunning
+                      ? 'bg-blue-500/5'
+                      : 'bg-green-500/5'
+                }`}
+              >
+                {/* Status indicator: pulse-dot / check / cross */}
+                {isRunning ? (
+                  <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse-dot flex-shrink-0" />
+                ) : isError ? (
+                  <span className="text-red-400 flex-shrink-0">✕</span>
+                ) : (
+                  <span className="text-green-400 flex-shrink-0">✓</span>
+                )}
+
+                {/* Label with status suffix */}
+                <span
+                  className={`truncate flex-1 ${
+                    isError
+                      ? 'text-red-300'
+                      : 'text-[var(--color-text-secondary)]'
+                  }`}
+                >
+                  {isRunning
+                    ? `正在${label}...`
+                    : isError
+                      ? `${label}失败`
+                      : `${label}完成`}
+                </span>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

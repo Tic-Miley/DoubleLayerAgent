@@ -35,7 +35,8 @@ def validate_chart_option(option: dict[str, Any]) -> tuple[str, int]:
     chart_type = first_series.get("type", "")
     if chart_type not in ALLOWED_CHART_TYPES:
         raise ChartValidationError(
-            f"不支持的图表类型 '{chart_type}'，仅支持 {', '.join(sorted(ALLOWED_CHART_TYPES))}"
+            f"不支持的图表类型 '{chart_type}'，仅支持 {', '.join(sorted(ALLOWED_CHART_TYPES))}。"
+            f"跨源对比请使用 bar 或 line（支持多系列）。"
         )
 
     data = first_series.get("data", [])
@@ -48,10 +49,13 @@ def validate_chart_option(option: dict[str, Any]) -> tuple[str, int]:
         raise ChartValidationError(f"饼图扇区数 {data_points} 超过上限 {MAX_PIE_SECTORS}")
 
     if chart_type in ("line", "bar") and data_points > MAX_DATA_POINTS:
-        raise ChartValidationError(f"{chart_type} 图数据点 {data_points} 超过上限 {MAX_DATA_POINTS}")
+        raise ChartValidationError(
+            f"{chart_type} 图数据点 {data_points} 超过上限 {MAX_DATA_POINTS}。"
+            f"提示：对比多源时请确保各系列数据点数量一致且 xAxis 对齐。"
+        )
 
     if data_points == 0:
-        raise ChartValidationError("series[0].data 不能为空")
+        raise ChartValidationError("series[0].data 不能为空。请检查数据源是否返回了有效数值。")
 
     return chart_type, data_points
 

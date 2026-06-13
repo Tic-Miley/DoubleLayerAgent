@@ -175,6 +175,7 @@ async def query_agent_thing(
             "source": source_id,
             "tool_results": tool_results,
             "charts": charts,
+            "chart_types": list({c.get("chart_type") for c in charts if c.get("chart_type")}),
             "summary": final_text,
             "structured": structured,
         }

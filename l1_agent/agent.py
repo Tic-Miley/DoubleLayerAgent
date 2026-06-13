@@ -47,6 +47,28 @@ L2 Agent 会以 JSON 格式返回结构化数据。你需要从返回结果中�
 必要时使用 aggregate 工具做跨源统计。你可以向停车场查询任何数据——剩余车位、
 历史趋势、车辆详情等。L2 Agent 通过 SQL 工具几乎能回答所有停车场相关问题。
 
+每个 L2 返回结果中可能包含 chart_types 字段，表明该源生成的图表类型。
+各 L2 生成的独立图表会自动在前端展示，你无需为它们重新生成。
+
+## 图表策略
+- 跨源对比图表推荐使用 bar 或 line（支持多系列），pie 只适合单源占比展示
+- 从 aggregate 返回的数值结果构建图表 option，不要直接合并各 L2 的原始 chart option
+- 当各源数据维度无法统一到单一图表时（如 A 源=时序趋势、B 源=车型分布、C 源=比例构成），
+  **不要强制生成图表**——改为输出文字对比分析，引用各源的具体数值
+- 图表是可选辅助手段，有实质内容的文字分析才是核心输出
+
+### 处理数据维度不匹配
+1. 若 2/3 源数据维度兼容，为兼容源生成对比图表，不兼容源在文字中单独讨论
+2. 若没有任何源的数据维度兼容：输出纯文字分析，逐一引用各源的结构化数值
+3. 可针对特定 L2 发送补充查询获取兼容数据（如 "请给出按车型分类的当前在场车辆数"），
+   但注意每次重查询耗时较长，优先使用已有数据做文字分析
+
+## 错误恢复
+- render_chart 连续失败 2 次后：立即停止尝试生成图表
+- 转为纯文字分析——利用各 L2 返回的结构化数值做跨源对比
+- 即使没有对比图表，也必须输出有实质内容的分析，引用具体数字
+- 其他工具错误：修正参数重试一次，连续失败后跳过并在文字中说明
+
 ## 当前用户位置
 纬度: {user_lat}, 经度: {user_lng}
 """
@@ -200,7 +222,44 @@ async def agent_loop(
         messages.extend(history)
     messages.append({"role": "user", "content": user_message})
 
+    # Chart failure tracking: prevent iteration exhaustion when chart types are incompatible
+    MAX_CONSECUTIVE_CHART_FAILURES = 2
+    chart_failures_in_a_row = 0
+
     for _ in range(config.MAX_ITERATIONS):
+        # ── Chart failure guard: force text-only conclusion ──
+        if chart_failures_in_a_row >= MAX_CONSECUTIVE_CHART_FAILURES:
+            force_messages = list(messages) + [{
+                "role": "system",
+                "content": (
+                    "图表生成已连续失败，通常因为各数据源的数据维度不兼容。"
+                    "请根据已有的工具调用结果，直接输出文字分析总结。"
+                    "不要调用任何工具，直接回复。"
+                ),
+            }]
+            stream = await client.chat.completions.create(
+                model=model or config.DEEPSEEK_MODEL,
+                messages=force_messages,
+                stream=True,
+                extra_body={"thinking": {"type": thinking_mode or config.THINKING_MODE}},
+            )
+
+            full_response = ""
+            async for chunk in stream:
+                if chunk.choices and chunk.choices[0].delta.content:
+                    token = chunk.choices[0].delta.content
+                    full_response += token
+                    if send_sse:
+                        await send_sse.text(token)
+
+            messages.append({"role": "assistant", "content": full_response})
+
+            if send_sse:
+                # Usage unavailable in guard path — we didn't make a non-streaming call
+                await send_sse.done(usage=None)
+
+            return full_response
+
         # Tool decision phase (non-streaming)
         response = await client.chat.completions.create(
             model=model or config.DEEPSEEK_MODEL,
@@ -287,9 +346,17 @@ async def agent_loop(
                 if isinstance(tr, Exception):
                     content = json.dumps({"error": str(tr)}, ensure_ascii=False)
                     call_id = tc.id
+                    result_for_check = {"error": str(tr)}
                 else:
-                    call_id, result = tr
-                    content = json.dumps(result, ensure_ascii=False)
+                    call_id, result_for_check = tr
+                    content = json.dumps(result_for_check, ensure_ascii=False)
+
+                # Track consecutive render_chart failures for guard mechanism
+                if tc.function.name == "render_chart":
+                    if "error" in result_for_check:
+                        chart_failures_in_a_row += 1
+                    else:
+                        chart_failures_in_a_row = 0
 
                 messages.append({
                     "role": "tool",

@@ -134,4 +134,44 @@ def aggregate(data: list[dict], operations: list[dict]) -> dict:
         except Exception as e:
             results[key] = {"error": str(e)}
 
+    # Inject chart type hint to help LLM choose compatible chart type
+    chart_hint = _infer_chart_type(data, operations)
+    if chart_hint:
+        results["_chart_hint"] = chart_hint
+
     return {"results": results}
+
+
+def _infer_chart_type(data: list[dict], operations: list[dict]) -> str | None:
+    """
+    Infer a recommended chart type based on data shape.
+
+    Used to provide a hint to the LLM so it can choose a compatible chart type
+    when multiple sources return different chart types.
+    """
+    if not data or not operations:
+        return None
+
+    valid = [d for d in data if isinstance(d, dict) and "error" not in d]
+    if not valid:
+        return None
+
+    # Check if any data item contains date/day fields (suggests time series)
+    has_dates = any(
+        k for item in valid
+        for k in item if isinstance(k, str) and ("date" in k.lower() or "time" in k.lower())
+    )
+    if has_dates:
+        return "line"
+
+    # Check if operations target type/category fields
+    has_groups = any(
+        op.get("field", "") for op in operations
+        if "type" in str(op.get("field", "")).lower()
+        or "group" in str(op.get("field", "")).lower()
+    )
+    if has_groups:
+        return "bar"
+
+    # Default: bar is the most universal comparison format
+    return "bar"

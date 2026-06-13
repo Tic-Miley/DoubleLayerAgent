@@ -262,7 +262,7 @@ async def query_rest_thing(
 
     try:
         async with httpx.AsyncClient() as client:
-            resp = await client.get(endpoint, timeout=5.0)
+            resp = await client.get(endpoint, timeout=config.L2_TIMEOUT_SECONDS)
             resp.raise_for_status()
             data = resp.json()
 

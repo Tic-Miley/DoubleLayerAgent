@@ -134,5 +134,10 @@ THINGS_BY_TYPE: dict[str, list[str]] = {}
 for t in THINGS:
     THINGS_BY_TYPE.setdefault(t["type"], []).append(t["id"])
 
+# Reverse map: tool_name → thing_id (O(1) lookup for bridge tool dispatch)
+TOOL_NAME_TO_THING_ID: dict[str, str] = {}
+for tid, schema in TOOL_SCHEMA_MAP.items():
+    TOOL_NAME_TO_THING_ID[schema["function"]["name"]] = tid
+
 # Validate on import
 validate_config(THINGS, TOOL_SCHEMAS_RAW)

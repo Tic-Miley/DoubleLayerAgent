@@ -9,6 +9,7 @@ L1 Extended ReAct Agent Loop。
 """
 
 import asyncio
+import copy
 import datetime
 import json
 from typing import Any
@@ -16,6 +17,7 @@ from typing import Any
 from openai import AsyncOpenAI
 
 import config
+from config import THING_MAP, TOOL_NAME_TO_THING_ID
 from tools import TOOL_SCHEMAS, TOOL_EXECUTORS
 from bridge import query_agent_thing, query_rest_thing
 from sse import SSESender
@@ -32,7 +34,8 @@ SYSTEM_PROMPT = """你是城市数据整合助手。你可以访问多个城市�
 ## 能力
 - 搜索附近设施（find_nearby_things）
 - 查询各设施的数据（通过对应工具）
-- 聚合多源数据（aggregate）
+- 聚合多源数据（aggregate）——支持 sum/avg/min/max/count/median/std，
+  field 使用点号分隔的嵌套路径，如 structured.occupancy_rate
 - 生成对比图表（render_chart）
 
 ## 工作流程
@@ -50,6 +53,9 @@ L2 Agent 会以 JSON 格式返回结构化数据。你需要从返回结果中�
 每个 L2 返回结果中可能包含 chart_types 字段，表明该源生成的图表类型。
 各 L2 生成的独立图表会自动在前端展示，你无需为它们重新生成。
 
+aggregate 工具的返回结果中包含 _chart_hint 字段（值为 bar/line/pie），
+这是根据数据形状推断的推荐图表类型，生成 render_chart 时应优先参考。
+
 ## 图表策略
 - 跨源对比图表推荐使用 bar 或 line（支持多系列），pie 只适合单源占比展示
 - 从 aggregate 返回的数值结果构建图表 option，不要直接合并各 L2 的原始 chart option
@@ -63,7 +69,14 @@ L2 Agent 会以 JSON 格式返回结构化数据。你需要从返回结果中�
 3. 可针对特定 L2 发送补充查询获取兼容数据（如 "请给出按车型分类的当前在场车辆数"），
    但注意每次重查询耗时较长，优先使用已有数据做文字分析
 
+## 查询时间范围建议
+- 默认查询"当前"或"今天"的数据，避免不必要的大范围历史查询
+- 历史趋势查询建议限定在最近 7-30 天，按日聚合即可
+- 除非用户明确要求，不要查询超过 90 天的历史数据
+
 ## 错误恢复
+- L2 数据源返回 timeout 或 unavailable 错误：在文字中注明该源不可用，使用其余源
+  继续分析，不要反复重试同一不可用源
 - render_chart 连续失败 2 次后：立即停止尝试生成图表
 - 转为纯文字分析——利用各 L2 返回的结构化数值做跨源对比
 - 即使没有对比图表，也必须输出有实质内容的分析，引用具体数字
@@ -71,6 +84,9 @@ L2 Agent 会以 JSON 格式返回结构化数据。你需要从返回结果中�
 
 ## 当前用户位置
 纬度: {user_lat}, 经度: {user_lng}
+
+## 当前时间
+{current_datetime}
 """
 
 
@@ -103,12 +119,15 @@ def _tool_message(tool_name: str, arguments: dict) -> str:
         title = arguments.get("chart_title", "")
         return f"生成对比图表{f' ({title})' if title else ''}"
 
-    if tool_name.startswith("query_parking_lot"):
+    # Bridge tools: use thing metadata for dynamic message generation
+    thing_id = TOOL_NAME_TO_THING_ID.get(tool_name)
+    if thing_id:
+        thing = THING_MAP.get(thing_id, {})
+        thing_name = thing.get("name", thing_id)
         query = arguments.get("query", "")
-        return f"查询停车场数据{f': {query[:30]}...' if query else ''}"
-
-    if tool_name in ("query_cafeteria", "query_hospital"):
-        return "查询人数数据"
+        if query:
+            return f"查询{thing_name}{f': {query[:30]}...' if query else ''}"
+        return f"查询{thing_name}"
 
     return f"执行 {tool_name}"
 
@@ -144,14 +163,8 @@ async def _execute_bridge_tool(
     - agent_sse → query_agent_thing (SSE streaming)
     - http_rest → query_rest_thing (HTTP GET)
     """
-    from config import THING_MAP, TOOL_SCHEMA_MAP
-
-    # Find which thing this tool belongs to
-    thing_id = None
-    for tid, schema in TOOL_SCHEMA_MAP.items():
-        if schema["function"]["name"] == tool_name:
-            thing_id = tid
-            break
+    # O(1) lookup using pre-computed reverse map
+    thing_id = TOOL_NAME_TO_THING_ID.get(tool_name)
 
     if not thing_id:
         return {"error": f"未找到工具 {tool_name} 对应的物"}
@@ -408,11 +421,11 @@ async def agent_loop(
 
 
 def _truncate_preview(result: dict, max_chars: int = 200) -> dict:
-    """截断长结果用于 SSE 预览。"""
+    """截断长结果用于 SSE 预览。深拷贝，不修改原始数据。"""
     s = json.dumps(result, ensure_ascii=False)
     if len(s) <= max_chars:
         return result
-    preview = dict(result)
+    preview = copy.deepcopy(result)
     for key in list(preview.keys()):
         val = preview[key]
         if isinstance(val, list) and len(val) > 5:

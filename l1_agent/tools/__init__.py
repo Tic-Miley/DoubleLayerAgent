@@ -6,12 +6,7 @@ L1 Tool Registry — L1 自有工具 + L2 bridge 工具。
 2. L2 bridge 工具（tools.yaml 动态生成）：query_parking_lot_*, query_cafeteria, query_hospital
 """
 
-import json
-import asyncio
-import logging
 from typing import Any
-
-logger = logging.getLogger(__name__)
 
 # ── L1 自有工具 ──────────────────────────────────────────
 
@@ -46,7 +41,8 @@ L1_TOOL_SCHEMAS: list[dict] = [
                     },
                     "thing_type": {
                         "type": "string",
-                        "description": "可选物类型过滤: parking_lot, cafeteria, hospital",
+                        "enum": ["parking_lot", "cafeteria", "hospital"],
+                        "description": "可选物类型过滤",
                     },
                 },
                 "required": ["lat", "lng", "radius_km"],
@@ -133,50 +129,6 @@ L1_EXECUTORS: dict[str, Any] = {
 }
 
 
-# ── L2 Bridge 工具 ───────────────────────────────────────
-# 在 TOOL_REGISTRY 初始化时构建
-
-def _build_l2_bridge_executors():
-    """
-    从 config 动态构建 L2 bridge tool executor 函数。
-    每个 executor 捕获其对应的 thing 元数据。
-
-    注意: 这些 executor 不直接参与工具调用。
-    agent_loop 通过 BRIDGE_TOOL_NAMES 集合识别 bridge 工具并调用 bridge 层函数。
-    此处仅保留 executor 映射以供工具注册的完整性。
-    """
-    from config import THING_MAP, TOOL_SCHEMA_MAP
-    from bridge import query_agent_thing, query_rest_thing
-
-    executors: dict[str, Any] = {}
-
-    for thing_id, schema in TOOL_SCHEMA_MAP.items():
-        thing = THING_MAP.get(thing_id)
-        if not thing:
-            logger.warning(f"Tool schema for '{thing_id}' has no matching thing — skipping")
-            continue
-
-        tool_name = schema["function"]["name"]
-        protocol = thing.get("protocol")
-
-        if protocol == "agent_sse":
-            async def executor(
-                query: str,
-                _thing=thing,
-                _thing_id=thing_id,
-                history: list[dict] | None = None,
-            ) -> dict:
-                return await query_agent_thing(_thing, query, history)
-            executors[tool_name] = executor
-
-        elif protocol == "http_rest":
-            async def executor(_thing=thing, _thing_id=thing_id):
-                return await query_rest_thing(_thing)
-            executors[tool_name] = executor
-
-    return executors
-
-
 # ── Combine ──────────────────────────────────────────────
 
 
@@ -187,12 +139,7 @@ def get_all_tool_schemas() -> list[dict]:
     return L1_TOOL_SCHEMAS + l2_schemas
 
 
-def get_all_executors() -> dict[str, Any]:
-    """Return combined executors: L1 own + L2 bridge."""
-    l2_execs = _build_l2_bridge_executors()
-    return {**L1_EXECUTORS, **l2_execs}
-
-
 # Singleton — built once at import time
 TOOL_SCHEMAS = get_all_tool_schemas()
-TOOL_EXECUTORS = get_all_executors()
+# Only L1 tools have local executors; bridge tools are dispatched via agent_loop → bridge.py
+TOOL_EXECUTORS = dict(L1_EXECUTORS)

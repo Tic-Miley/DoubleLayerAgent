@@ -142,6 +142,23 @@ def aggregate(data: list[dict], operations: list[dict]) -> dict:
     return {"results": results}
 
 
+def _has_date_keys(obj: Any, depth: int = 0) -> bool:
+    """Recursively check if any dict key in a nested structure suggests time-series data."""
+    if depth > 4:
+        return False
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            if isinstance(k, str) and ("date" in k.lower() or "time" in k.lower()):
+                return True
+            if _has_date_keys(v, depth + 1):
+                return True
+    elif isinstance(obj, list):
+        for item in obj[:10]:  # sample first 10 items to avoid scanning huge lists
+            if _has_date_keys(item, depth + 1):
+                return True
+    return False
+
+
 def _infer_chart_type(data: list[dict], operations: list[dict]) -> str | None:
     """
     Infer a recommended chart type based on data shape.
@@ -156,12 +173,8 @@ def _infer_chart_type(data: list[dict], operations: list[dict]) -> str | None:
     if not valid:
         return None
 
-    # Check if any data item contains date/day fields (suggests time series)
-    has_dates = any(
-        k for item in valid
-        for k in item if isinstance(k, str) and ("date" in k.lower() or "time" in k.lower())
-    )
-    if has_dates:
+    # Recursively check if any data item contains date/time keys (suggests time series)
+    if any(_has_date_keys(item) for item in valid):
         return "line"
 
     # Check if operations target type/category fields

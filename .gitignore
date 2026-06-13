@@ -23,5 +23,8 @@ Thumbs.db
 .idea/
 .vscode/
 
+# ── Runtime PID tracking ────────────────────────
+.running_state.json
+
 # ── Claude Code ─────────────────────────────────
 .claude/

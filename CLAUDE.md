@@ -25,7 +25,9 @@ cd ../frontend && npm install
 .\scripts\regenerate_data.ps1
 
 # Start everything
-.\start_all.ps1    # starts 6 processes; open http://localhost:5173
+.\start_all.ps1    # starts 6 processes; Ctrl+C to stop all
+# Alternative: start in one terminal, stop from another
+.\stop_all.ps1     # kill all tracked processes (or .\stop_all.ps1 -Force for port-based cleanup)
 
 # Quick verify
 curl http://localhost:8010/api/health    # SimpleThings

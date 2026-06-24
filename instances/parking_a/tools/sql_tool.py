@@ -49,7 +49,8 @@ def sql_query(query: str) -> dict:
     else:
         for kw in FORBIDDEN_KEYWORDS:
             if re.search(kw, query_upper):
-                return {"error": f"此查询涉及不允许的操作 ({kw.strip('\\\\b')})，请使用预定义工具"}
+                _kw_clean = kw.strip('\\b')
+                return {"error": f"此查询涉及不允许的操作 ({_kw_clean})，请使用预定义工具"}
 
         if not query_upper.startswith("SELECT"):
             return {"error": "仅支持 SELECT 和 PRAGMA 查询"}
